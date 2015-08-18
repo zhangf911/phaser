@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -133,7 +133,7 @@ Phaser.TweenManager.prototype = {
     */
     removeFrom: function (obj, children) {
         
-        if (typeof children === 'undefined') { children = true; }
+        if (children === undefined) { children = true; }
 
         var i;
         var len;

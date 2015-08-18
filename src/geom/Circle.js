@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -36,41 +36,74 @@ Phaser.Circle = function (x, y, diameter) {
     */
     this._diameter = diameter;
 
+    /**
+   * @property {number} _radius - The radius of the circle.
+   * @private
+   */
+    this._radius = 0;
+
     if (diameter > 0)
     {
-        /**
-       * @property {number} _radius - The radius of the circle.
-       * @private
-       */
         this._radius = diameter * 0.5;
     }
-    else
-    {
-        this._radius = 0;
-    }
+
+    /**
+    * @property {number} type - The const type of this object.
+    * @readonly
+    */
+    this.type = Phaser.CIRCLE;
 
 };
 
 Phaser.Circle.prototype = {
 
-    type: null,
-
     /**
     * The circumference of the circle.
+    * 
     * @method Phaser.Circle#circumference
-    * @return {number}
+    * @return {number} The circumference of the circle.
     */
     circumference: function () {
+
         return 2 * (Math.PI * this._radius);
+
     },
 
     /**
-    * Returns the framing rectangle of the circle as a Phaser.Rectangle object
+    * Returns a uniformly distributed random point from anywhere within this Circle.
+    * 
+    * @method Phaser.Circle#random
+    * @param {Phaser.Point|object} [out] - A Phaser.Point, or any object with public x/y properties, that the values will be set in.
+    *     If no object is provided a new Phaser.Point object will be created. In high performance areas avoid this by re-using an existing object.
+    * @return {Phaser.Point} An object containing the random point in its `x` and `y` properties.
+    */
+    random: function (out) {
+
+        if (out === undefined) { out = new Phaser.Point(); }
+
+        var t = 2 * Math.PI * Math.random();
+        var u = Math.random() + Math.random();
+        var r = (u > 1) ? 2 - u : u;
+        var x = r * Math.cos(t);
+        var y = r * Math.sin(t);
+
+        out.x = this.x + (x * this.radius);
+        out.y = this.y + (y * this.radius);
+
+        return out;
+
+    },
+
+    /**
+    * Returns the framing rectangle of the circle as a Phaser.Rectangle object.
+    * 
     * @method Phaser.Circle#getBounds
     * @return {Phaser.Rectangle} The bounds of the Circle.
     */
     getBounds: function () {
-        return new Phaser.Rectangle(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+
+        return new Phaser.Rectangle(this.x - this.radius, this.y - this.radius, this.diameter, this.diameter);
+
     },
 
     /**
@@ -143,7 +176,7 @@ Phaser.Circle.prototype = {
     */
     clone: function (output) {
 
-        if (typeof output === "undefined" || output === null)
+        if (output === undefined || output === null)
         {
             output = new Phaser.Circle(this.x, this.y, this.diameter);
         }
@@ -224,6 +257,7 @@ Phaser.Circle.prototype.constructor = Phaser.Circle;
 
 /**
 * The largest distance between any two points on the circle. The same as the radius * 2.
+* 
 * @name Phaser.Circle#diameter
 * @property {number} diameter - Gets or sets the diameter of the circle.
 */
@@ -480,8 +514,8 @@ Phaser.Circle.intersects = function (a, b) {
 */
 Phaser.Circle.circumferencePoint = function (a, angle, asDegrees, out) {
 
-    if (typeof asDegrees === "undefined") { asDegrees = false; }
-    if (typeof out === "undefined") { out = new Phaser.Point(); }
+    if (asDegrees === undefined) { asDegrees = false; }
+    if (out === undefined) { out = new Phaser.Point(); }
 
     if (asDegrees === true)
     {

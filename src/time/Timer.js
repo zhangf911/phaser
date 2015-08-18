@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -8,7 +8,7 @@
 * A Timer is a way to create small re-usable (or disposable) objects that wait for a specific moment in time,
 * and then run the specified callbacks.
 *
-* You can many events to a Timer, each with their own delays. A Timer uses milliseconds as its unit of time (there are 1000 ms in 1 second).
+* You can add many events to a Timer, each with their own delays. A Timer uses milliseconds as its unit of time (there are 1000 ms in 1 second).
 * So a delay to 250 would fire the event every quarter of a second.
 *
 * Timers are based on real-world (not physics) time, adjusted for game pause durations.
@@ -20,7 +20,7 @@
 */
 Phaser.Timer = function (game, autoDestroy) {
 
-    if (typeof autoDestroy === 'undefined') { autoDestroy = true; }
+    if (autoDestroy === undefined) { autoDestroy = true; }
 
     /**
     * @property {Phaser.Game} game - Local reference to game.
@@ -81,7 +81,6 @@ Phaser.Timer = function (game, autoDestroy) {
     /**
     * @property {number} timeCap - If the difference in time between two frame updates exceeds this value, the event times are reset to avoid catch-up situations.
     */
-    // this.timeCap = 1 / 60 * 1000;
     this.timeCap = 1000;
 
     /**
@@ -322,7 +321,7 @@ Phaser.Timer.prototype = {
 
         this.running = false;
 
-        if (typeof clearEvents === 'undefined') { clearEvents = true; }
+        if (clearEvents === undefined) { clearEvents = true; }
 
         if (clearEvents)
         {
@@ -448,7 +447,7 @@ Phaser.Timer.prototype = {
         {
             while (this._i < this._len && this.running)
             {
-                if (this._now >= this.events[this._i].tick)
+                if (this._now >= this.events[this._i].tick && !this.events[this._i].pendingDelete)
                 {
                     //  (now + delay) - (time difference from last tick to now)
                     this._newTick = (this._now + this.events[this._i].delay) - (this._now - this.events[this._i].tick);

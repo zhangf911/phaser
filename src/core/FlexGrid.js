@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -26,7 +26,7 @@ Phaser.FlexGrid = function (manager, width, height) {
     this.game = manager.game;
 
     /**
-    * @property {Phaser.ScaleManager} scale - A reference to the ScaleManager.
+    * @property {Phaser.ScaleManager} manager - A reference to the ScaleManager.
     */
     this.manager = manager;
 
@@ -112,7 +112,7 @@ Phaser.FlexGrid.prototype = {
      */
     createCustomLayer: function (width, height, children, addToWorld) {
 
-        if (typeof addToWorld === 'undefined') { addToWorld = true; }
+        if (addToWorld === undefined) { addToWorld = true; }
 
         this.customWidth = width;
         this.customHeight = height;
@@ -147,7 +147,7 @@ Phaser.FlexGrid.prototype = {
      */
     createFluidLayer: function (children, addToWorld) {
 
-        if (typeof addToWorld === 'undefined') { addToWorld = true; }
+        if (addToWorld === undefined) { addToWorld = true; }
 
         var layer = new Phaser.FlexLayer(this, this.positionFluid, this.boundsFluid, this.scaleFluid);
 

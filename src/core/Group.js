@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -26,9 +26,9 @@
 */
 Phaser.Group = function (game, parent, name, addToStage, enableBody, physicsBodyType) {
 
-    if (typeof addToStage === 'undefined') { addToStage = false; }
-    if (typeof enableBody === 'undefined') { enableBody = false; }
-    if (typeof physicsBodyType === 'undefined') { physicsBodyType = Phaser.Physics.ARCADE; }
+    if (addToStage === undefined) { addToStage = false; }
+    if (enableBody === undefined) { enableBody = false; }
+    if (physicsBodyType === undefined) { physicsBodyType = Phaser.Physics.ARCADE; }
 
     /**
     * A reference to the currently running Game.
@@ -37,7 +37,7 @@ Phaser.Group = function (game, parent, name, addToStage, enableBody, physicsBody
     */
     this.game = game;
 
-    if (typeof parent === 'undefined')
+    if (parent === undefined)
     {
         parent = game.world;
     }
@@ -57,12 +57,15 @@ Phaser.Group = function (game, parent, name, addToStage, enableBody, physicsBody
 
     PIXI.DisplayObjectContainer.call(this);
 
-    if (addToStage) {
+    if (addToStage)
+    {
         this.game.stage.addChild(this);
         this.z = this.game.stage.children.length;
     }
-    else {
-        if (parent) {
+    else
+    {
+        if (parent)
+        {
             parent.addChild(this);
             this.z = parent.children.length;
         }
@@ -74,6 +77,12 @@ Phaser.Group = function (game, parent, name, addToStage, enableBody, physicsBody
     * @protected
     */
     this.type = Phaser.GROUP;
+
+    /**
+    * @property {number} physicsType - The const physics body type of this object.
+    * @readonly
+    */
+    this.physicsType = Phaser.GROUP;
 
     /**
     * The alive property is useful for Groups that are children of other Groups and need to be included/excluded in checks like forEachAlive.
@@ -97,6 +106,18 @@ Phaser.Group = function (game, parent, name, addToStage, enableBody, physicsBody
     this.ignoreDestroy = false;
 
     /**
+    * A Group is that has `pendingDestroy` set to `true` is flagged to have its destroy method 
+    * called on the next logic update.
+    * You can set it directly to flag the Group to be destroyed on its next update.
+    * 
+    * This is extremely useful if you wish to destroy a Group from within one of its own callbacks 
+    * or a callback of one of its children.
+    * 
+    * @property {boolean} pendingDestroy
+    */
+    this.pendingDestroy = false;
+
+    /**
     * The type of objects that will be created when using {@link #create} or {@link #createMultiple}.
     *
     * Any object may be used but it should extend either Sprite or Image and accept the same constructor arguments:
@@ -108,25 +129,12 @@ Phaser.Group = function (game, parent, name, addToStage, enableBody, physicsBody
     this.classType = Phaser.Sprite;
 
     /**
-    * The scale of the group container.
-    *
-    * @property {Phaser.Point} scale
-    */
-    this.scale = new Phaser.Point(1, 1);
-
-    /**
-    * The current display object that the group cursor is pointing to, if any. (Can be set manully.)
+    * The current display object that the group cursor is pointing to, if any. (Can be set manually.)
     *
     * The cursor is a way to iterate through the children in a Group using {@link #next} and {@link #previous}.
     * @property {?DisplayObject} cursor
     */
     this.cursor = null;
-
-    /**
-    * If this object is {@link #fixedToCamera} then this stores the x/y position offset relative to the top-left of the camera view.
-    * @property {Phaser.Point} cameraOffset
-    */
-    this.cameraOffset = new Phaser.Point();
 
     /**
     * If true all Sprites created by, or added to this group, will have a physics body enabled on them.
@@ -154,10 +162,64 @@ Phaser.Group = function (game, parent, name, addToStage, enableBody, physicsBody
     this.physicsBodyType = physicsBodyType;
 
     /**
+    * If this Group contains Arcade Physics Sprites you can set a custom sort direction via this property.
+    * 
+    * It should be set to one of the Phaser.Physics.Arcade sort direction constants: 
+    * 
+    * Phaser.Physics.Arcade.SORT_NONE
+    * Phaser.Physics.Arcade.LEFT_RIGHT
+    * Phaser.Physics.Arcade.RIGHT_LEFT
+    * Phaser.Physics.Arcade.TOP_BOTTOM
+    * Phaser.Physics.Arcade.BOTTOM_TOP
+    *
+    * If set to `null` the Group will use whatever Phaser.Physics.Arcade.sortDirection is set to. This is the default behavior.
+    * 
+    * @property {integer} physicsSortDirection
+    * @default
+    */
+    this.physicsSortDirection = null;
+
+    /**
     * This signal is dispatched when the group is destroyed.
     * @property {Phaser.Signal} onDestroy
     */
     this.onDestroy = new Phaser.Signal();
+
+    /**
+    * @property {integer} cursorIndex - The current index of the Group cursor. Advance it with Group.next.
+    * @readOnly
+    */
+    this.cursorIndex = 0;
+
+    /**
+    * A Group that is fixed to the camera uses its x/y coordinates as offsets from the top left of the camera. These are stored in Group.cameraOffset.
+    * 
+    * Note that the cameraOffset values are in addition to any parent in the display list.
+    * So if this Group was in a Group that has x: 200, then this will be added to the cameraOffset.x
+    * 
+    * @property {boolean} fixedToCamera
+    */
+    this.fixedToCamera = false;
+
+    /**
+    * If this object is {@link #fixedToCamera} then this stores the x/y position offset relative to the top-left of the camera view.
+    * If the parent of this Group is also `fixedToCamera` then the offset here is in addition to that and should typically be disabled.
+    * @property {Phaser.Point} cameraOffset
+    */
+    this.cameraOffset = new Phaser.Point();
+
+    /**
+    * The hash array is an array belonging to this Group into which you can add any of its children via Group.addToHash and Group.removeFromHash.
+    * 
+    * Only children of this Group can be added to and removed from the hash.
+    * 
+    * This hash is used automatically by Phaser Arcade Physics in order to perform non z-index based destructive sorting.
+    * However if you don't use Arcade Physics, or this isn't a physics enabled Group, then you can use the hash to perform your own
+    * sorting and filtering of Group children without touching their z-index (and therefore display draw order)
+    * 
+    * @property {array} hash
+    */
+    this.hash = [];
 
     /**
     * The property on which children are sorted.
@@ -165,23 +227,6 @@ Phaser.Group = function (game, parent, name, addToStage, enableBody, physicsBody
     * @private
     */
     this._sortProperty = 'z';
-
-    /**
-    * A small internal cache:
-    * 0 = previous position.x
-    * 1 = previous position.y
-    * 2 = previous rotation
-    * 3 = renderID
-    * 4 = fresh? (0 = no, 1 = yes)
-    * 5 = outOfBoundsFired (0 = no, 1 = yes)
-    * 6 = exists (0 = no, 1 = yes)
-    * 7 = fixed to camera (0 = no, 1 = yes)
-    * 8 = cursor index
-    * 9 = sort order
-    * @property {Array} _cache
-    * @private
-    */
-    this._cache = [ 0, 0, 0, 0, 1, 0, 1, 0, 0, 0 ];
 
 };
 
@@ -228,6 +273,8 @@ Phaser.Group.SORT_DESCENDING = 1;
 *
 * The child is automatically added to the top of the group and is displayed on top of every previous child.
 *
+* If Group.enableBody is set then a physics body will be created on the object, so long as one does not already exist.
+*
 * Use {@link #addAt} to control where a child is added. Use {@link #create} to create and add a new child.
 *
 * @method Phaser.Group#add
@@ -237,18 +284,22 @@ Phaser.Group.SORT_DESCENDING = 1;
 */
 Phaser.Group.prototype.add = function (child, silent) {
 
-    if (typeof silent === 'undefined') { silent = false; }
+    if (silent === undefined) { silent = false; }
 
     if (child.parent !== this)
     {
-        if (this.enableBody)
-        {
-            this.game.physics.enable(child, this.physicsBodyType);
-        }
-
         this.addChild(child);
 
         child.z = this.children.length;
+
+        if (this.enableBody && child.body === null)
+        {
+            this.game.physics.enable(child, this.physicsBodyType);
+        }
+        else if (child.body)
+        {
+            this.addToHash(child);
+        }
 
         if (!silent && child.events)
         {
@@ -266,20 +317,75 @@ Phaser.Group.prototype.add = function (child, silent) {
 };
 
 /**
-* Adds an array of existing display objects to this group.
+* Adds a child of this Group into the hash array.
+* This call will return false if the child is not a child of this Group, or is already in the hash.
 *
-* The children are automatically added to the top of the group, so render on-top of everything else within the group.
+* @method Phaser.Group#addToHash
+* @param {DisplayObject} child - The display object to add to this Groups hash. Must be a member of this Group already and not present in the hash.
+* @return {boolean} True if the child was successfully added to the hash, otherwise false.
+*/
+Phaser.Group.prototype.addToHash = function (child) {
+
+    if (child.parent === this)
+    {
+        var index = this.hash.indexOf(child);
+
+        if (index === -1)
+        {
+            this.hash.push(child);
+            return true;
+        }
+    }
+
+    return false;
+
+};
+
+/**
+* Removes a child of this Group from the hash array.
+* This call will return false if the child is not in the hash.
 *
-* TODO: Add ability to pass the children as parameters rather than having to be an array.
+* @method Phaser.Group#removeFromHash
+* @param {DisplayObject} child - The display object to remove from this Groups hash. Must be a member of this Group and in the hash.
+* @return {boolean} True if the child was successfully removed from the hash, otherwise false.
+*/
+Phaser.Group.prototype.removeFromHash = function (child) {
+
+    if (child)
+    {
+        var index = this.hash.indexOf(child);
+
+        if (index !== -1)
+        {
+            this.hash.splice(index, 1);
+            return true;
+        }
+    }
+
+    return false;
+
+};
+
+/**
+* Adds an array of existing Display Objects to this Group.
+*
+* The Display Objects are automatically added to the top of this Group, and will render on-top of everything already in this Group.
+*
+* As well as an array you can also pass another Group as the first argument. In this case all of the children from that
+* Group will be removed from it and added into this Group.
 *
 * @method Phaser.Group#addMultiple
-* @param {DisplayObject[]} children - An array of display objects to add as children.
+* @param {DisplayObject[]|Phaser.Group} children - An array of display objects or a Phaser.Group. If a Group is given then *all* children will be moved from it.
 * @param {boolean} [silent=false] - If true the children will not dispatch the `onAddedToGroup` event.
-* @return {DisplayObject[]} The array of children that were added to the group.
+* @return {DisplayObject[]|Phaser.Group} The array of children or Group of children that were added to this Group.
 */
 Phaser.Group.prototype.addMultiple = function (children, silent) {
 
-    if (Array.isArray(children))
+    if (children instanceof Phaser.Group)
+    {
+        children.moveAll(this, silent);
+    }
+    else if (Array.isArray(children))
     {
         for (var i = 0; i < children.length; i++)
         {
@@ -304,18 +410,22 @@ Phaser.Group.prototype.addMultiple = function (children, silent) {
 */
 Phaser.Group.prototype.addAt = function (child, index, silent) {
 
-    if (typeof silent === 'undefined') { silent = false; }
+    if (silent === undefined) { silent = false; }
 
     if (child.parent !== this)
     {
-        if (this.enableBody)
-        {
-            this.game.physics.enable(child, this.physicsBodyType);
-        }
-
         this.addChildAt(child, index);
 
         this.updateZ();
+
+        if (this.enableBody && child.body === null)
+        {
+            this.game.physics.enable(child, this.physicsBodyType);
+        }
+        else if (child.body)
+        {
+            this.addToHash(child);
+        }
 
         if (!silent && child.events)
         {
@@ -337,7 +447,7 @@ Phaser.Group.prototype.addAt = function (child, index, silent) {
 *
 * @method Phaser.Group#getAt
 * @param {integer} index - The index to return the child from.
-* @return {DisplayObject} The child that was found at the given index, or -1 for an invalid index.
+* @return {DisplayObject|integer} The child that was found at the given index, or -1 for an invalid index.
 */
 Phaser.Group.prototype.getAt = function (index) {
 
@@ -367,14 +477,9 @@ Phaser.Group.prototype.getAt = function (index) {
 */
 Phaser.Group.prototype.create = function (x, y, key, frame, exists) {
 
-    if (typeof exists === 'undefined') { exists = true; }
+    if (exists === undefined) { exists = true; }
 
     var child = new this.classType(this.game, x, y, key, frame);
-
-    if (this.enableBody)
-    {
-        this.game.physics.enable(child, this.physicsBodyType, this.enableBodyDebug);
-    }
 
     child.exists = exists;
     child.visible = exists;
@@ -383,6 +488,11 @@ Phaser.Group.prototype.create = function (x, y, key, frame, exists) {
     this.addChild(child);
 
     child.z = this.children.length;
+
+    if (this.enableBody)
+    {
+        this.game.physics.enable(child, this.physicsBodyType, this.enableBodyDebug);
+    }
 
     if (child.events)
     {
@@ -404,7 +514,7 @@ Phaser.Group.prototype.create = function (x, y, key, frame, exists) {
 * Useful if you need to quickly generate a pool of identical sprites, such as bullets.
 *
 * By default the sprites will be set to not exist and will be positioned at 0, 0 (relative to the group.x/y).
-* Use {@link #classType} to change the type of object creaded.
+* Use {@link #classType} to change the type of object created.
 *
 * @method Phaser.Group#createMultiple
 * @param {integer} quantity - The number of Sprites to create.
@@ -414,7 +524,7 @@ Phaser.Group.prototype.create = function (x, y, key, frame, exists) {
 */
 Phaser.Group.prototype.createMultiple = function (quantity, key, frame, exists) {
 
-    if (typeof exists === 'undefined') { exists = false; }
+    if (exists === undefined) { exists = false; }
 
     for (var i = 0; i < quantity; i++)
     {
@@ -424,7 +534,7 @@ Phaser.Group.prototype.createMultiple = function (quantity, key, frame, exists) 
 };
 
 /**
-* Internal method that re-applies all of the childrens Z values.
+* Internal method that re-applies all of the children's Z values.
 *
 * This must be called whenever children ordering is altered so that their `z` indices are correctly updated.
 *
@@ -453,7 +563,7 @@ Phaser.Group.prototype.updateZ = function () {
 */
 Phaser.Group.prototype.resetCursor = function (index) {
 
-    if (typeof index === 'undefined') { index = 0; }
+    if (index === undefined) { index = 0; }
 
     if (index > this.children.length - 1)
     {
@@ -462,8 +572,8 @@ Phaser.Group.prototype.resetCursor = function (index) {
 
     if (this.cursor)
     {
-        this._cache[8] = index;
-        this.cursor = this.children[this._cache[8]];
+        this.cursorIndex = index;
+        this.cursor = this.children[this.cursorIndex];
         return this.cursor;
     }
 
@@ -482,16 +592,16 @@ Phaser.Group.prototype.next = function () {
     if (this.cursor)
     {
         //  Wrap the cursor?
-        if (this._cache[8] >= this.children.length - 1)
+        if (this.cursorIndex >= this.children.length - 1)
         {
-            this._cache[8] = 0;
+            this.cursorIndex = 0;
         }
         else
         {
-            this._cache[8]++;
+            this.cursorIndex++;
         }
 
-        this.cursor = this.children[this._cache[8]];
+        this.cursor = this.children[this.cursorIndex];
 
         return this.cursor;
     }
@@ -511,16 +621,16 @@ Phaser.Group.prototype.previous = function () {
     if (this.cursor)
     {
         //  Wrap the cursor?
-        if (this._cache[8] === 0)
+        if (this.cursorIndex === 0)
         {
-            this._cache[8] = this.children.length - 1;
+            this.cursorIndex = this.children.length - 1;
         }
         else
         {
-            this._cache[8]--;
+            this.cursorIndex--;
         }
 
-        this.cursor = this.children[this._cache[8]];
+        this.cursor = this.children[this.cursorIndex];
 
         return this.cursor;
     }
@@ -768,7 +878,7 @@ Phaser.Group.prototype.hasProperty = function (child, key) {
 */
 Phaser.Group.prototype.setProperty = function (child, key, value, operation, force) {
 
-    if (typeof force === 'undefined') { force = false; }
+    if (force === undefined) { force = false; }
 
     operation = operation || 0;
 
@@ -838,7 +948,7 @@ Phaser.Group.prototype.setProperty = function (child, key, value, operation, for
 */
 Phaser.Group.prototype.checkProperty = function (child, key, value, force) {
 
-    if (typeof force === 'undefined') { force = false; }
+    if (force === undefined) { force = false; }
 
     //  We can't force a property in and the child doesn't have it, so abort.
     if (!Phaser.Utils.getProperty(child, key) && force)
@@ -872,12 +982,12 @@ Phaser.Group.prototype.checkProperty = function (child, key, value, force) {
 */
 Phaser.Group.prototype.set = function (child, key, value, checkAlive, checkVisible, operation, force) {
 
-    if (typeof force === 'undefined') { force = false; }
+    if (force === undefined) { force = false; }
 
     key = key.split('.');
 
-    if (typeof checkAlive === 'undefined') { checkAlive = false; }
-    if (typeof checkVisible === 'undefined') { checkVisible = false; }
+    if (checkAlive === undefined) { checkAlive = false; }
+    if (checkVisible === undefined) { checkVisible = false; }
 
     if ((checkAlive === false || (checkAlive && child.alive)) && (checkVisible === false || (checkVisible && child.visible)))
     {
@@ -904,14 +1014,14 @@ Phaser.Group.prototype.set = function (child, key, value, checkAlive, checkVisib
 */
 Phaser.Group.prototype.setAll = function (key, value, checkAlive, checkVisible, operation, force) {
 
-    if (typeof checkAlive === 'undefined') { checkAlive = false; }
-    if (typeof checkVisible === 'undefined') { checkVisible = false; }
-    if (typeof force === 'undefined') { force = false; }
+    if (checkAlive === undefined) { checkAlive = false; }
+    if (checkVisible === undefined) { checkVisible = false; }
+    if (force === undefined) { force = false; }
 
     key = key.split('.');
     operation = operation || 0;
 
-    for (var i = 0, len = this.children.length; i < len; i++)
+    for (var i = 0; i < this.children.length; i++)
     {
         if ((!checkAlive || (checkAlive && this.children[i].alive)) && (!checkVisible || (checkVisible && this.children[i].visible)))
         {
@@ -939,13 +1049,13 @@ Phaser.Group.prototype.setAll = function (key, value, checkAlive, checkVisible, 
 */
 Phaser.Group.prototype.setAllChildren = function (key, value, checkAlive, checkVisible, operation, force) {
 
-    if (typeof checkAlive === 'undefined') { checkAlive = false; }
-    if (typeof checkVisible === 'undefined') { checkVisible = false; }
-    if (typeof force === 'undefined') { force = false; }
+    if (checkAlive === undefined) { checkAlive = false; }
+    if (checkVisible === undefined) { checkVisible = false; }
+    if (force === undefined) { force = false; }
 
     operation = operation || 0;
 
-    for (var i = 0, len = this.children.length; i < len; i++)
+    for (var i = 0; i < this.children.length; i++)
     {
         if ((!checkAlive || (checkAlive && this.children[i].alive)) && (!checkVisible || (checkVisible && this.children[i].visible)))
         {
@@ -976,11 +1086,11 @@ Phaser.Group.prototype.setAllChildren = function (key, value, checkAlive, checkV
 */
 Phaser.Group.prototype.checkAll = function (key, value, checkAlive, checkVisible, force) {
 
-    if (typeof checkAlive === 'undefined') { checkAlive = false; }
-    if (typeof checkVisible === 'undefined') { checkVisible = false; }
-    if (typeof force === 'undefined') { force = false; }
+    if (checkAlive === undefined) { checkAlive = false; }
+    if (checkVisible === undefined) { checkVisible = false; }
+    if (force === undefined) { force = false; }
 
-    for (var i = 0, len = this.children.length; i < len; i++)
+    for (var i = 0; i < this.children.length; i++)
     {
         if ((!checkAlive || (checkAlive && this.children[i].alive)) && (!checkVisible || (checkVisible && this.children[i].visible)))
         {
@@ -1076,13 +1186,18 @@ Phaser.Group.prototype.divideAll = function (property, amount, checkAlive, check
 Phaser.Group.prototype.callAllExists = function (callback, existsValue) {
 
     var args;
+
     if (arguments.length > 2)
     {
         args = [];
-        for (var i = 2; i < arguments.length; i++) { args.push(arguments[i]); }
+
+        for (var i = 2; i < arguments.length; i++)
+        {
+            args.push(arguments[i]);
+        }
     }
 
-    for (var i = 0, len = this.children.length; i < len; i++)
+    for (var i = 0; i < this.children.length; i++)
     {
         if (this.children[i].exists === existsValue && this.children[i][callback])
         {
@@ -1158,7 +1273,7 @@ Phaser.Group.prototype.callbackFromArray = function (child, callback, length) {
 */
 Phaser.Group.prototype.callAll = function (method, context) {
 
-    if (typeof method === 'undefined')
+    if (method === undefined)
     {
         return;
     }
@@ -1168,7 +1283,7 @@ Phaser.Group.prototype.callAll = function (method, context) {
 
     var methodLength = method.length;
 
-    if (typeof context === 'undefined' || context === null || context === '')
+    if (context === undefined || context === null || context === '')
     {
         context = null;
     }
@@ -1183,16 +1298,21 @@ Phaser.Group.prototype.callAll = function (method, context) {
     }
 
     var args;
+
     if (arguments.length > 2)
     {
         args = [];
-        for (var i = 2; i < arguments.length; i++) { args.push(arguments[i]); }
+
+        for (var i = 2; i < arguments.length; i++)
+        {
+            args.push(arguments[i]);
+        }
     }
 
     var callback = null;
     var callbackContext = null;
 
-    for (var i = 0, len = this.children.length; i < len; i++)
+    for (var i = 0; i < this.children.length; i++)
     {
         callback = this.callbackFromArray(this.children[i], method, methodLength);
 
@@ -1219,6 +1339,12 @@ Phaser.Group.prototype.callAll = function (method, context) {
 * @protected
 */
 Phaser.Group.prototype.preUpdate = function () {
+
+    if (this.pendingDestroy)
+    {
+        this.destroy();
+        return false;
+    }
 
     if (!this.exists || !this.parent.exists)
     {
@@ -1261,7 +1387,7 @@ Phaser.Group.prototype.update = function () {
 Phaser.Group.prototype.postUpdate = function () {
 
     //  Fixed to Camera?
-    if (this._cache[7] === 1)
+    if (this.fixedToCamera)
     {
         this.x = this.game.camera.view.x + this.cameraOffset.x;
         this.y = this.game.camera.view.y + this.cameraOffset.y;
@@ -1324,9 +1450,9 @@ Phaser.Group.prototype.filter = function (predicate, checkExists) {
 *
 *     Group.forEach(awardBonusGold, this, true, 100, 500)
 *
-* would invoke thee `awardBonusGolds` with the parameters `(child, 100, 500)`.
+* would invoke `awardBonusGold` function with the parameters `(child, 100, 500)`.
 *
-* Note: Currently this will skip any children which are Groups themselves.
+* Note: This check will skip any children which are Groups themselves.
 *
 * @method Phaser.Group#forEach
 * @param {function} callback - The function that will be called for each applicable child. The child will be passed as the first argument.
@@ -1336,11 +1462,11 @@ Phaser.Group.prototype.filter = function (predicate, checkExists) {
 */
 Phaser.Group.prototype.forEach = function (callback, callbackContext, checkExists) {
 
-    if (typeof checkExists === 'undefined') { checkExists = false; }
+    if (checkExists === undefined) { checkExists = false; }
 
     if (arguments.length <= 3)
     {
-        for (var i = 0, len = this.children.length; i < len; i++)
+        for (var i = 0; i < this.children.length; i++)
         {
             if (!checkExists || (checkExists && this.children[i].exists))
             {
@@ -1353,9 +1479,13 @@ Phaser.Group.prototype.forEach = function (callback, callbackContext, checkExist
         // Assigning to arguments properties causes Extreme Deoptimization in Chrome, FF, and IE.
         // Using an array and pushing each element (not a slice!) is _significantly_ faster.
         var args = [null];
-        for (var i = 3; i < arguments.length; i++) { args.push(arguments[i]); }
 
-        for (var i = 0, len = this.children.length; i < len; i++)
+        for (var i = 3; i < arguments.length; i++)
+        {
+            args.push(arguments[i]);
+        }
+
+        for (var i = 0; i < this.children.length; i++)
         {
             if (!checkExists || (checkExists && this.children[i].exists))
             {
@@ -1380,10 +1510,15 @@ Phaser.Group.prototype.forEach = function (callback, callbackContext, checkExist
 Phaser.Group.prototype.forEachExists = function (callback, callbackContext) {
 
     var args;
+
     if (arguments.length > 2)
     {
         args = [null];
-        for (var i = 2; i < arguments.length; i++) { args.push(arguments[i]); }
+
+        for (var i = 2; i < arguments.length; i++)
+        {
+            args.push(arguments[i]);
+        }
     }
 
     this.iterate('exists', true, Phaser.Group.RETURN_TOTAL, callback, callbackContext, args);
@@ -1403,10 +1538,15 @@ Phaser.Group.prototype.forEachExists = function (callback, callbackContext) {
 Phaser.Group.prototype.forEachAlive = function (callback, callbackContext) {
 
     var args;
+
     if (arguments.length > 2)
     {
         args = [null];
-        for (var i = 2; i < arguments.length; i++) { args.push(arguments[i]); }
+
+        for (var i = 2; i < arguments.length; i++)
+        {
+            args.push(arguments[i]);
+        }
     }
 
     this.iterate('alive', true, Phaser.Group.RETURN_TOTAL, callback, callbackContext, args);
@@ -1426,10 +1566,15 @@ Phaser.Group.prototype.forEachAlive = function (callback, callbackContext) {
 Phaser.Group.prototype.forEachDead = function (callback, callbackContext) {
 
     var args;
+
     if (arguments.length > 2)
     {
         args = [null];
-        for (var i = 2; i < arguments.length; i++) { args.push(arguments[i]); }
+
+        for (var i = 2; i < arguments.length; i++)
+        {
+            args.push(arguments[i]);
+        }
     }
 
     this.iterate('alive', false, Phaser.Group.RETURN_TOTAL, callback, callbackContext, args);
@@ -1454,8 +1599,8 @@ Phaser.Group.prototype.sort = function (key, order) {
         return;
     }
 
-    if (typeof key === 'undefined') { key = 'z'; }
-    if (typeof order === 'undefined') { order = Phaser.Group.SORT_ASCENDING; }
+    if (key === undefined) { key = 'z'; }
+    if (order === undefined) { order = Phaser.Group.SORT_ASCENDING; }
 
     this._sortProperty = key;
 
@@ -1575,7 +1720,7 @@ Phaser.Group.prototype.descendingSortHandler = function (a, b) {
 * @method Phaser.Group#iterate
 * @param {string} key - The child property to check, i.e. 'exists', 'alive', 'health'
 * @param {any} value - A child matches if `child[key] === value` is true.
-* @param {integer} returnType - How to iterate the childen and what to return.
+* @param {integer} returnType - How to iterate the children and what to return.
 * @param {function} [callback=null] - Optional function that will be called on each matching child. The matched child is supplied as the first argument.
 * @param {object} [callbackContext] - The context in which the function should be called (usually 'this').
 * @param {any[]} [args=(none)] - The arguments supplied to to the callback; the first array index (argument) will be replaced with the matched child.
@@ -1590,7 +1735,7 @@ Phaser.Group.prototype.iterate = function (key, value, returnType, callback, cal
 
     var total = 0;
 
-    for (var i = 0, len = this.children.length; i < len; i++)
+    for (var i = 0; i < this.children.length; i++)
     {
         if (this.children[i][key] === value)
         {
@@ -1767,8 +1912,8 @@ Phaser.Group.prototype.getRandom = function (startIndex, length) {
 */
 Phaser.Group.prototype.remove = function (child, destroy, silent) {
 
-    if (typeof destroy === 'undefined') { destroy = false; }
-    if (typeof silent === 'undefined') { silent = false; }
+    if (destroy === undefined) { destroy = false; }
+    if (silent === undefined) { silent = false; }
 
     if (this.children.length === 0 || this.children.indexOf(child) === -1)
     {
@@ -1781,6 +1926,8 @@ Phaser.Group.prototype.remove = function (child, destroy, silent) {
     }
 
     var removed = this.removeChild(child);
+
+    this.removeFromHash(child);
 
     this.updateZ();
 
@@ -1799,6 +1946,35 @@ Phaser.Group.prototype.remove = function (child, destroy, silent) {
 };
 
 /**
+* Moves all children from this Group to the Group given.
+*
+* @method Phaser.Group#moveAll
+* @param {Phaser.Group} group - The new Group to which the children will be moved to.
+* @param {boolean} [silent=false] - If true the children will not dispatch the `onAddedToGroup` event for the new Group.
+* @return {Phaser.Group} The Group to which all the children were moved.
+*/
+Phaser.Group.prototype.moveAll = function (group, silent) {
+
+    if (silent === undefined) { silent = false; }
+
+    if (this.children.length > 0 && group instanceof Phaser.Group)
+    {
+        do
+        {
+            group.add(this.children[0], silent);
+        }
+        while (this.children.length > 0);
+
+        this.hash = [];
+
+        this.cursor = null;
+    }
+
+    return group;
+
+};
+
+/**
 * Removes all children from this group, but does not remove the group from its parent.
 *
 * @method Phaser.Group#removeAll
@@ -1807,8 +1983,8 @@ Phaser.Group.prototype.remove = function (child, destroy, silent) {
 */
 Phaser.Group.prototype.removeAll = function (destroy, silent) {
 
-    if (typeof destroy === 'undefined') { destroy = false; }
-    if (typeof silent === 'undefined') { silent = false; }
+    if (destroy === undefined) { destroy = false; }
+    if (silent === undefined) { silent = false; }
 
     if (this.children.length === 0)
     {
@@ -1824,12 +2000,16 @@ Phaser.Group.prototype.removeAll = function (destroy, silent) {
 
         var removed = this.removeChild(this.children[0]);
 
+        this.removeFromHash(removed);
+
         if (destroy && removed)
         {
             removed.destroy(true);
         }
     }
     while (this.children.length > 0);
+
+    this.hash = [];
 
     this.cursor = null;
 
@@ -1846,9 +2026,9 @@ Phaser.Group.prototype.removeAll = function (destroy, silent) {
 */
 Phaser.Group.prototype.removeBetween = function (startIndex, endIndex, destroy, silent) {
 
-    if (typeof endIndex === 'undefined') { endIndex = this.children.length - 1; }
-    if (typeof destroy === 'undefined') { destroy = false; }
-    if (typeof silent === 'undefined') { silent = false; }
+    if (endIndex === undefined) { endIndex = this.children.length - 1; }
+    if (destroy === undefined) { destroy = false; }
+    if (silent === undefined) { silent = false; }
 
     if (this.children.length === 0)
     {
@@ -1870,6 +2050,8 @@ Phaser.Group.prototype.removeBetween = function (startIndex, endIndex, destroy, 
         }
 
         var removed = this.removeChild(this.children[i]);
+
+        this.removeFromHash(removed);
 
         if (destroy && removed)
         {
@@ -1901,8 +2083,8 @@ Phaser.Group.prototype.destroy = function (destroyChildren, soft) {
 
     if (this.game === null || this.ignoreDestroy) { return; }
 
-    if (typeof destroyChildren === 'undefined') { destroyChildren = true; }
-    if (typeof soft === 'undefined') { soft = false; }
+    if (destroyChildren === undefined) { destroyChildren = true; }
+    if (soft === undefined) { soft = false; }
 
     this.onDestroy.dispatch(this, destroyChildren, soft);
 
@@ -1910,6 +2092,7 @@ Phaser.Group.prototype.destroy = function (destroyChildren, soft) {
 
     this.cursor = null;
     this.filters = null;
+    this.pendingDestroy = false;
 
     if (!soft)
     {
@@ -1977,40 +2160,6 @@ Object.defineProperty(Phaser.Group.prototype, "angle", {
 
     set: function(value) {
         this.rotation = Phaser.Math.degToRad(value);
-    }
-
-});
-
-/**
-* Is this group fixed to the camera?
-*
-* A Group that is fixed to the camera uses its x/y coordinates as offsets from the top left of the camera.
-*
-* These are stored in {@link #cameraOffset} and are in addition to any parent in the display list.
-* So if this group was in a Group that has x: 200, then this will be added to the cameraOffset.x
-*
-* @name Phaser.Group#fixedToCamera
-* @property {boolean} fixedToCamera
-*/
-Object.defineProperty(Phaser.Group.prototype, "fixedToCamera", {
-
-    get: function () {
-
-        return !!this._cache[7];
-
-    },
-
-    set: function (value) {
-
-        if (value)
-        {
-            this._cache[7] = 1;
-            this.cameraOffset.set(this.x, this.y);
-        }
-        else
-        {
-            this._cache[7] = 0;
-        }
     }
 
 });

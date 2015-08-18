@@ -1,7 +1,7 @@
 /**
  * @author       Jeremy Dowell <jeremy@codevinsky.com>
  * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2014 Photon Storm Ltd.
+ * @copyright    2015 Photon Storm Ltd.
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
@@ -84,7 +84,7 @@ Phaser.AudioSprite.prototype = {
      */
     play: function (marker, volume) {
 
-        if (typeof volume === 'undefined') { volume = 1; }
+        if (volume === undefined) { volume = 1; }
 
         return this.sounds[marker].play(marker, null, volume);
 

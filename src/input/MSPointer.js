@@ -1,14 +1,20 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
 /**
 * The MSPointer class handles Microsoft touch interactions with the game and the resulting Pointer objects.
 *
-* It will work only in Internet Explorer 10 and Windows Store or Windows Phone 8 apps using JavaScript.
+* It will work only in Internet Explorer 10+ and Windows Store or Windows Phone 8 apps using JavaScript.
 * http://msdn.microsoft.com/en-us/library/ie/hh673557(v=vs.85).aspx
+*
+* You should not normally access this class directly, but instead use a Phaser.Pointer object which 
+* normalises all game input for you including accurate button handling.
+*
+* Please note that at the current time of writing Phaser does not yet support chorded button interactions:
+* http://www.w3.org/TR/pointerevents/#chorded-button-interactions
 *
 * @class Phaser.MSPointer
 * @constructor
@@ -22,9 +28,51 @@ Phaser.MSPointer = function (game) {
     this.game = game;
 
     /**
+    * @property {Phaser.Input} input - A reference to the Phaser Input Manager.
+    * @protected
+    */
+    this.input = game.input;
+
+    /**
     * @property {object} callbackContext - The context under which callbacks are called (defaults to game).
     */
     this.callbackContext = this.game;
+
+    /**
+    * @property {function} pointerDownCallback - A callback that can be fired on a MSPointerDown event.
+    */
+    this.pointerDownCallback = null;
+
+    /**
+    * @property {function} pointerMoveCallback - A callback that can be fired on a MSPointerMove event.
+    */
+    this.pointerMoveCallback = null;
+
+    /**
+    * @property {function} pointerUpCallback - A callback that can be fired on a MSPointerUp event.
+    */
+    this.pointerUpCallback = null;
+
+    /**
+    * @property {boolean} capture - If true the Pointer events will have event.preventDefault applied to them, if false they will propagate fully.
+    */
+    this.capture = true;
+
+    /**
+    * This property was removed in Phaser 2.4 and should no longer be used.
+    * Instead please see the Pointer button properties such as `Pointer.leftButton`, `Pointer.rightButton` and so on.
+    * Or Pointer.button holds the DOM event button value if you require that.
+    * @property {number} button
+    */
+    this.button = -1;
+
+    /**
+    * The browser MSPointer DOM event. Will be null if no event has ever been received.
+    * Access this property only inside a Pointer event handler and do not keep references to it.
+    * @property {MSPointerEvent|null} event
+    * @default
+    */
+    this.event = null;
 
     /**
     * MSPointer input will only be processed if enabled.
@@ -83,17 +131,19 @@ Phaser.MSPointer.prototype = {
                 return _this.onPointerUp(event);
             };
 
-            this.game.canvas.addEventListener('MSPointerDown', this._onMSPointerDown, false);
-            this.game.canvas.addEventListener('MSPointerMove', this._onMSPointerMove, false);
-            this.game.canvas.addEventListener('MSPointerUp', this._onMSPointerUp, false);
+            var canvas = this.game.canvas;
+
+            canvas.addEventListener('MSPointerDown', this._onMSPointerDown, false);
+            canvas.addEventListener('MSPointerMove', this._onMSPointerMove, false);
+            canvas.addEventListener('MSPointerUp', this._onMSPointerUp, false);
 
             //  IE11+ uses non-prefix events
-            this.game.canvas.addEventListener('pointerDown', this._onMSPointerDown, false);
-            this.game.canvas.addEventListener('pointerMove', this._onMSPointerMove, false);
-            this.game.canvas.addEventListener('pointerUp', this._onMSPointerUp, false);
+            canvas.addEventListener('pointerDown', this._onMSPointerDown, false);
+            canvas.addEventListener('pointerMove', this._onMSPointerMove, false);
+            canvas.addEventListener('pointerUp', this._onMSPointerUp, false);
 
-            this.game.canvas.style['-ms-content-zooming'] = 'none';
-            this.game.canvas.style['-ms-touch-action'] = 'none';
+            canvas.style['-ms-content-zooming'] = 'none';
+            canvas.style['-ms-touch-action'] = 'none';
         }
 
     },
@@ -106,15 +156,33 @@ Phaser.MSPointer.prototype = {
     */
     onPointerDown: function (event) {
 
-        if (!this.game.input.enabled || !this.enabled)
+        this.event = event;
+
+        if (this.capture)
+        {
+            event.preventDefault();
+        }
+
+        if (this.pointerDownCallback)
+        {
+            this.pointerDownCallback.call(this.callbackContext, event);
+        }
+
+        if (!this.input.enabled || !this.enabled)
         {
             return;
         }
 
-        event.preventDefault();
         event.identifier = event.pointerId;
 
-        this.game.input.startPointer(event);
+        if (event.pointerType === 'mouse' || event.pointerType === 0x00000004)
+        {
+            this.input.mousePointer.start(event);
+        }
+        else
+        {
+            this.input.startPointer(event);
+        }
 
     },
 
@@ -125,15 +193,33 @@ Phaser.MSPointer.prototype = {
     */
     onPointerMove: function (event) {
 
-        if (!this.game.input.enabled || !this.enabled)
+        this.event = event;
+
+        if (this.capture)
+        {
+            event.preventDefault();
+        }
+
+        if (this.pointerMoveCallback)
+        {
+            this.pointerMoveCallback.call(this.callbackContext, event);
+        }
+
+        if (!this.input.enabled || !this.enabled)
         {
             return;
         }
 
-        event.preventDefault();
         event.identifier = event.pointerId;
 
-        this.game.input.updatePointer(event);
+        if (event.pointerType === 'mouse' || event.pointerType === 0x00000004)
+        {
+            this.input.mousePointer.move(event);
+        }
+        else
+        {
+            this.input.updatePointer(event);
+        }
 
     },
 
@@ -144,15 +230,33 @@ Phaser.MSPointer.prototype = {
     */
     onPointerUp: function (event) {
 
-        if (!this.game.input.enabled || !this.enabled)
+        this.event = event;
+
+        if (this.capture)
+        {
+            event.preventDefault();
+        }
+
+        if (this.pointerUpCallback)
+        {
+            this.pointerUpCallback.call(this.callbackContext, event);
+        }
+
+        if (!this.input.enabled || !this.enabled)
         {
             return;
         }
 
-        event.preventDefault();
         event.identifier = event.pointerId;
 
-        this.game.input.stopPointer(event);
+        if (event.pointerType === 'mouse' || event.pointerType === 0x00000004)
+        {
+            this.input.mousePointer.stop(event);
+        }
+        else
+        {
+            this.input.stopPointer(event);
+        }
 
     },
 
@@ -162,34 +266,18 @@ Phaser.MSPointer.prototype = {
     */
     stop: function () {
 
-        this.game.canvas.removeEventListener('MSPointerDown', this._onMSPointerDown);
-        this.game.canvas.removeEventListener('MSPointerMove', this._onMSPointerMove);
-        this.game.canvas.removeEventListener('MSPointerUp', this._onMSPointerUp);
+        var canvas = this.game.canvas;
 
-        this.game.canvas.removeEventListener('pointerDown', this._onMSPointerDown);
-        this.game.canvas.removeEventListener('pointerMove', this._onMSPointerMove);
-        this.game.canvas.removeEventListener('pointerUp', this._onMSPointerUp);
+        canvas.removeEventListener('MSPointerDown', this._onMSPointerDown);
+        canvas.removeEventListener('MSPointerMove', this._onMSPointerMove);
+        canvas.removeEventListener('MSPointerUp', this._onMSPointerUp);
+
+        canvas.removeEventListener('pointerDown', this._onMSPointerDown);
+        canvas.removeEventListener('pointerMove', this._onMSPointerMove);
+        canvas.removeEventListener('pointerUp', this._onMSPointerUp);
 
     }
 
 };
 
 Phaser.MSPointer.prototype.constructor = Phaser.MSPointer;
-
-/**
-* If disabled all MSPointer input will be ignored.
-* @property {boolean} disabled
-* @memberof Phaser.MSPointer
-* @default false
-* @deprecated Use {@link Phaser.MSPointer#enabled} instead
-*/
-Object.defineProperty(Phaser.MSPointer.prototype, "disabled", {
-
-    get: function () {
-        return !this.enabled;
-    },
-    set: function (value) {
-        this.enabled = !value;
-    }
-
-});

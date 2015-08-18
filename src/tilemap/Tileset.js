@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -21,10 +21,10 @@
 */
 Phaser.Tileset = function (name, firstgid, width, height, margin, spacing, properties) {
 
-    if (typeof width === 'undefined' || width <= 0) { width = 32; }
-    if (typeof height === 'undefined' || height <= 0) { height = 32; }
-    if (typeof margin === 'undefined') { margin = 0; }
-    if (typeof spacing === 'undefined') { spacing = 0; }
+    if (width === undefined || width <= 0) { width = 32; }
+    if (height === undefined || height <= 0) { height = 32; }
+    if (margin === undefined) { margin = 0; }
+    if (spacing === undefined) { spacing = 0; }
 
     /**
     * The name of the Tileset.
@@ -159,8 +159,7 @@ Phaser.Tileset.prototype = {
     * @public
     * @return {boolean} True if this tileset contains the given index.
     */
-    containsTileIndex: function (tileIndex)
-    {
+    containsTileIndex: function (tileIndex) {
 
         return (
             tileIndex >= this.firstgid &&
@@ -188,8 +187,8 @@ Phaser.Tileset.prototype = {
     *
     * @method Phaser.Tileset#setSpacing
     * @public
-    * @param {integer} tileMargin - The margin around the tiles in the sheet (in pixels).
-    * @param {integer} tileSpacing - The spacing between the tiles in the sheet (in pixels).
+    * @param {integer} [margin=0] - The margin around the tiles in the sheet (in pixels).
+    * @param {integer} [spacing=0] - The spacing between the tiles in the sheet (in pixels).
     */
     setSpacing: function (margin, spacing) {
 
@@ -214,8 +213,8 @@ Phaser.Tileset.prototype = {
     updateTileData: function (imageWidth, imageHeight) {
 
         // May be fractional values
-        var rowCount = (imageHeight - this.tileMargin) / (this.tileHeight + this.tileSpacing);
-        var colCount = (imageWidth - this.tileMargin) / (this.tileWidth + this.tileSpacing);
+        var rowCount = (imageHeight - this.tileMargin * 2 + this.tileSpacing) / (this.tileHeight + this.tileSpacing);
+        var colCount = (imageWidth - this.tileMargin * 2 + this.tileSpacing) / (this.tileWidth + this.tileSpacing);
 
         if (rowCount % 1 !== 0 || colCount % 1 !== 0)
         {

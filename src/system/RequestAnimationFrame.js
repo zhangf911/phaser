@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -14,7 +14,7 @@
 */
 Phaser.RequestAnimationFrame = function(game, forceSetTimeOut) {
 
-    if (typeof forceSetTimeOut === 'undefined') { forceSetTimeOut = false; }
+    if (forceSetTimeOut === undefined) { forceSetTimeOut = false; }
 
     /**
     * @property {Phaser.Game} game - The currently running game.

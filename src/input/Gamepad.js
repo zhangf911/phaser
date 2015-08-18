@@ -1,6 +1,6 @@
 /**
 * @author       @karlmacklin <tacklemcclean@gmail.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -482,24 +482,6 @@ Phaser.Gamepad.prototype = {
 };
 
 Phaser.Gamepad.prototype.constructor = Phaser.Gamepad;
-
-/**
-* If disabled all Gamepad input will be ignored.
-* @property {boolean} disabled
-* @memberof Phaser.Gamepad
-* @default false
-* @deprecated Use {@link Phaser.Gamepad#enabled} instead
-*/
-Object.defineProperty(Phaser.Gamepad.prototype, "disabled", {
-
-    get: function () {
-        return !this.enabled;
-    },
-    set: function (value) {
-        this.enabled = !value;
-    }
-
-});
 
 /**
 * If the gamepad input is active or not - if not active it should not be updated from Input.js

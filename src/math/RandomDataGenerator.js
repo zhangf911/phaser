@@ -2,7 +2,7 @@
 
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -22,7 +22,7 @@
 */
 Phaser.RandomDataGenerator = function (seeds) {
 
-    if (typeof seeds === "undefined") { seeds = []; }
+    if (seeds === undefined) { seeds = []; }
 
     /**
     * @property {number} c - Internal var.
@@ -270,7 +270,7 @@ Phaser.RandomDataGenerator.prototype = {
     */
     weightedPick: function (ary) {
 
-        return ary[~~(Math.pow(this.frac(), 2) * (ary.length - 1))];
+        return ary[~~(Math.pow(this.frac(), 2) * (ary.length - 1) + 0.5)];
 
     },
 

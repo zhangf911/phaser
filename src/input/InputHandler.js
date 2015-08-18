@@ -1,6 +1,6 @@
 /**
 * @author       Richard Davey <rich@photonstorm.com>
-* @copyright    2014 Photon Storm Ltd.
+* @copyright    2015 Photon Storm Ltd.
 * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
 */
 
@@ -125,8 +125,9 @@ Phaser.InputHandler = function (sprite) {
     /**
     * Set to true to use pixel perfect hit detection when checking if the pointer is over this Sprite.
     * The x/y coordinates of the pointer are tested against the image in combination with the InputHandler.pixelPerfectAlpha value.
+    * This feature only works for display objects with image based textures such as Sprites. It won't work on BitmapText or Rope.
     * Warning: This is expensive, especially on mobile (where it's not even needed!) so only enable if required. Also see the less-expensive InputHandler.pixelPerfectClick.
-    * @property {number} pixelPerfectOver - Use a pixel perfect check when testing for pointer over.
+    * @property {boolean} pixelPerfectOver - Use a pixel perfect check when testing for pointer over.
     * @default
     */
     this.pixelPerfectOver = false;
@@ -134,8 +135,9 @@ Phaser.InputHandler = function (sprite) {
     /**
     * Set to true to use pixel perfect hit detection when checking if the pointer is over this Sprite when it's clicked or touched.
     * The x/y coordinates of the pointer are tested against the image in combination with the InputHandler.pixelPerfectAlpha value.
+    * This feature only works for display objects with image based textures such as Sprites. It won't work on BitmapText or Rope.
     * Warning: This is expensive so only enable if you really need it.
-    * @property {number} pixelPerfectClick - Use a pixel perfect check when testing for clicks or touches on the Sprite.
+    * @property {boolean} pixelPerfectClick - Use a pixel perfect check when testing for clicks or touches on the Sprite.
     * @default
     */
     this.pixelPerfectClick = false;
@@ -165,7 +167,7 @@ Phaser.InputHandler = function (sprite) {
     this.boundsSprite = null;
 
     /**
-    * If this object is set to consume the pointer event then it will stop all propogation from this object on.
+    * If this object is set to consume the pointer event then it will stop all propagation from this object on.
     * For example if you had a stack of 6 sprites with the same priority IDs and one consumed the event, none of the others would receive it.
     * @property {boolean} consumePointerEvent
     * @default
@@ -176,6 +178,32 @@ Phaser.InputHandler = function (sprite) {
     * @property {boolean} scaleLayer - EXPERIMENTAL: Please do not use this property unless you know what it does. Likely to change in the future.
     */
     this.scaleLayer = false;
+
+    /**
+    * @property {Phaser.Point} dragOffset - The offset from the Sprites position that dragging takes place from.
+    */
+    this.dragOffset = new Phaser.Point();
+
+    /**
+    * @property {boolean} dragFromCenter - Is the Sprite dragged from its center, or the point at which the Pointer was pressed down upon it?
+    */
+    this.dragFromCenter = false;
+
+    /**
+    * @property {Phaser.Point} dragStartPoint - The Point from which the most recent drag started from. Useful if you need to return an object to its starting position.
+    */
+    this.dragStartPoint = new Phaser.Point();
+
+    /**
+    * @property {Phaser.Point} snapPoint - If the sprite is set to snap while dragging this holds the point of the most recent 'snap' event.
+    */
+    this.snapPoint = new Phaser.Point();
+
+    /**
+    * @property {Phaser.Point} _dragPoint - Internal cache var.
+    * @private
+    */
+    this._dragPoint = new Phaser.Point();
 
     /**
     * @property {boolean} _dragPhase - Internal cache var.
@@ -231,7 +259,7 @@ Phaser.InputHandler.prototype = {
     start: function (priority, useHandCursor) {
 
         priority = priority || 0;
-        if (typeof useHandCursor === 'undefined') { useHandCursor = false; }
+        if (useHandCursor === undefined) { useHandCursor = false; }
 
         //  Turning on
         if (this.enabled === false)
@@ -408,7 +436,7 @@ Phaser.InputHandler.prototype = {
     */
     validForInput: function (highestID, highestRenderID, includePixelPerfect) {
 
-        if (typeof includePixelPerfect === 'undefined') { includePixelPerfect = true; }
+        if (includePixelPerfect === undefined) { includePixelPerfect = true; }
 
         if (this.sprite.scale.x === 0 || this.sprite.scale.y === 0 || this.priorityID < this.game.input.minPriorityID)
         {
@@ -421,7 +449,7 @@ Phaser.InputHandler.prototype = {
             return false;
         }
 
-        if (this.priorityID > highestID || (this.priorityID === highestID && this.sprite._cache[3] < highestRenderID))
+        if (this.priorityID > highestID || (this.priorityID === highestID && this.sprite.renderOrderID < highestRenderID))
         {
             return true;
         }
@@ -544,7 +572,7 @@ Phaser.InputHandler.prototype = {
 
         if (this.enabled)
         {
-            if (typeof index === 'undefined')
+            if (index === undefined)
             {
                 for (var i = 0; i < 10; i++)
                 {
@@ -574,7 +602,7 @@ Phaser.InputHandler.prototype = {
 
         if (this.enabled)
         {
-            if (typeof index === 'undefined')
+            if (index === undefined)
             {
                 for (var i = 0; i < 10; i++)
                 {
@@ -655,7 +683,7 @@ Phaser.InputHandler.prototype = {
         //  Need to pass it a temp point, in case we need it again for the pixel check
         if (this.game.input.hitTest(this.sprite, pointer, this._tempPoint))
         {
-            if (typeof fastTest === 'undefined') { fastTest = false; }
+            if (fastTest === undefined) { fastTest = false; }
 
             if (!fastTest && this.pixelPerfectClick)
             {
@@ -690,7 +718,7 @@ Phaser.InputHandler.prototype = {
         //  Need to pass it a temp point, in case we need it again for the pixel check
         if (this.game.input.hitTest(this.sprite, pointer, this._tempPoint))
         {
-            if (typeof fastTest === 'undefined') { fastTest = false; }
+            if (fastTest === undefined) { fastTest = false; }
 
             if (!fastTest && this.pixelPerfectOver)
             {
@@ -820,7 +848,7 @@ Phaser.InputHandler.prototype = {
     * 
     * @method Phaser.InputHandler#_pointerOverHandler
     * @private
-    * @param {Phaser.Pointer} pointer
+    * @param {Phaser.Pointer} pointer - The pointer that triggered the event
     */
     _pointerOverHandler: function (pointer) {
 
@@ -857,7 +885,7 @@ Phaser.InputHandler.prototype = {
     * 
     * @method Phaser.InputHandler#_pointerOutHandler
     * @private
-    * @param {Phaser.Pointer} pointer
+    * @param {Phaser.Pointer} pointer - The pointer that triggered the event.
     */
     _pointerOutHandler: function (pointer) {
 
@@ -885,10 +913,11 @@ Phaser.InputHandler.prototype = {
     },
 
     /**
-    * Internal method handling the touched event.
+    * Internal method handling the touched / clicked event.
+    * 
     * @method Phaser.InputHandler#_touchedHandler
     * @private
-    * @param {Phaser.Pointer} pointer
+    * @param {Phaser.Pointer} pointer - The pointer that triggered the event.
     */
     _touchedHandler: function (pointer) {
 
@@ -898,7 +927,7 @@ Phaser.InputHandler.prototype = {
             return;
         }
 
-        if (this._pointerData[pointer.id].isDown === false && this._pointerData[pointer.id].isOver === true)
+        if (!this._pointerData[pointer.id].isDown && this._pointerData[pointer.id].isOver)
         {
             if (this.pixelPerfectClick && !this.checkPixel(null, null, pointer))
             {
@@ -1036,6 +1065,7 @@ Phaser.InputHandler.prototype = {
             {
                 this.sprite.cameraOffset.x = Math.round((this.sprite.cameraOffset.x - (this.snapOffsetX % this.snapX)) / this.snapX) * this.snapX + (this.snapOffsetX % this.snapX);
                 this.sprite.cameraOffset.y = Math.round((this.sprite.cameraOffset.y - (this.snapOffsetY % this.snapY)) / this.snapY) * this.snapY + (this.snapOffsetY % this.snapY);
+                this.snapPoint.set(this.sprite.cameraOffset.x, this.sprite.cameraOffset.y);
             }
         }
         else
@@ -1064,8 +1094,11 @@ Phaser.InputHandler.prototype = {
             {
                 this.sprite.x = Math.round((this.sprite.x - (this.snapOffsetX % this.snapX)) / this.snapX) * this.snapX + (this.snapOffsetX % this.snapX);
                 this.sprite.y = Math.round((this.sprite.y - (this.snapOffsetY % this.snapY)) / this.snapY) * this.snapY + (this.snapOffsetY % this.snapY);
+                this.snapPoint.set(this.sprite.x, this.sprite.y);
             }
         }
+
+        this.sprite.events.onDragUpdate.dispatch(this.sprite, pointer, px, py, this.snapPoint);
 
         return true;
 
@@ -1174,7 +1207,15 @@ Phaser.InputHandler.prototype = {
     },
 
     /**
-    * Make this Sprite draggable by the mouse. You can also optionally set mouseStartDragCallback and mouseStopDragCallback
+    * Allow this Sprite to be dragged by any valid pointer.
+    *
+    * When the drag begins the Sprite.events.onDragStart event will be dispatched.
+    * 
+    * When the drag completes by way of the user letting go of the pointer that was dragging the sprite, the Sprite.events.onDragStop event is dispatched.
+    *
+    * For the duration of the drag the Sprite.events.onDragUpdate event is dispatched. This event is only dispatched when the pointer actually
+    * changes position and moves. The event sends 5 parameters: `sprite`, `pointer`, `dragX`, `dragY` and `snapPoint`.
+    * 
     * @method Phaser.InputHandler#enableDrag
     * @param {boolean} [lockCenter=false] - If false the Sprite will drag from where you click it minus the dragOffset. If true it will center itself to the tip of the mouse pointer.
     * @param {boolean} [bringToTop=false] - If true the Sprite will be bought to the top of the rendering list in its current Group.
@@ -1185,12 +1226,12 @@ Phaser.InputHandler.prototype = {
     */
     enableDrag: function (lockCenter, bringToTop, pixelPerfect, alphaThreshold, boundsRect, boundsSprite) {
 
-        if (typeof lockCenter === 'undefined') { lockCenter = false; }
-        if (typeof bringToTop === 'undefined') { bringToTop = false; }
-        if (typeof pixelPerfect === 'undefined') { pixelPerfect = false; }
-        if (typeof alphaThreshold === 'undefined') { alphaThreshold = 255; }
-        if (typeof boundsRect === 'undefined') { boundsRect = null; }
-        if (typeof boundsSprite === 'undefined') { boundsSprite = null; }
+        if (lockCenter === undefined) { lockCenter = false; }
+        if (bringToTop === undefined) { bringToTop = false; }
+        if (pixelPerfect === undefined) { pixelPerfect = false; }
+        if (alphaThreshold === undefined) { alphaThreshold = 255; }
+        if (boundsRect === undefined) { boundsRect = null; }
+        if (boundsSprite === undefined) { boundsSprite = null; }
 
         this._dragPoint = new Phaser.Point();
         this.draggable = true;
@@ -1240,6 +1281,9 @@ Phaser.InputHandler.prototype = {
     */
     startDrag: function (pointer) {
 
+        var x = this.sprite.x;
+        var y = this.sprite.y;
+
         this.isDragged = true;
         this._draggedPointerID = pointer.id;
         this._pointerData[pointer.id].isDragged = true;
@@ -1277,7 +1321,8 @@ Phaser.InputHandler.prototype = {
             this.sprite.bringToTop();
         }
 
-        this.sprite.events.onDragStart$dispatch(this.sprite, pointer);
+        this.dragStartPoint.set(x, y);
+        this.sprite.events.onDragStart$dispatch(this.sprite, pointer, x, y);
 
     },
 
@@ -1358,8 +1403,8 @@ Phaser.InputHandler.prototype = {
     */
     setDragLock: function (allowHorizontal, allowVertical) {
 
-        if (typeof allowHorizontal === 'undefined') { allowHorizontal = true; }
-        if (typeof allowVertical === 'undefined') { allowVertical = true; }
+        if (allowHorizontal === undefined) { allowHorizontal = true; }
+        if (allowVertical === undefined) { allowVertical = true; }
 
         this.allowHorizontalDrag = allowHorizontal;
         this.allowVerticalDrag = allowVertical;
@@ -1375,14 +1420,14 @@ Phaser.InputHandler.prototype = {
     * @param {boolean} [onDrag=true] - If true the sprite will snap to the grid while being dragged.
     * @param {boolean} [onRelease=false] - If true the sprite will snap to the grid when released.
     * @param {number} [snapOffsetX=0] - Used to offset the top-left starting point of the snap grid.
-    * @param {number} [snapOffsetX=0] - Used to offset the top-left starting point of the snap grid.
+    * @param {number} [snapOffsetY=0] - Used to offset the top-left starting point of the snap grid.
     */
     enableSnap: function (snapX, snapY, onDrag, onRelease, snapOffsetX, snapOffsetY) {
 
-        if (typeof onDrag === 'undefined') { onDrag = true; }
-        if (typeof onRelease === 'undefined') { onRelease = false; }
-        if (typeof snapOffsetX === 'undefined') { snapOffsetX = 0; }
-        if (typeof snapOffsetY === 'undefined') { snapOffsetY = 0; }
+        if (onDrag === undefined) { onDrag = true; }
+        if (onRelease === undefined) { onRelease = false; }
+        if (snapOffsetX === undefined) { snapOffsetX = 0; }
+        if (snapOffsetY === undefined) { snapOffsetY = 0; }
 
         this.snapX = snapX;
         this.snapY = snapY;
@@ -1403,6 +1448,7 @@ Phaser.InputHandler.prototype = {
         this.snapOnRelease = false;
 
     },
+
 
     /**
     * Bounds Rect check for the sprite drag
@@ -1432,22 +1478,22 @@ Phaser.InputHandler.prototype = {
         }
         else
         {
-            if (this.sprite.x < this.boundsRect.left)
+            if (this.sprite.left < this.boundsRect.left)
             {
-                this.sprite.x = this.boundsRect.x;
+                this.sprite.x = this.boundsRect.x + this.sprite.offsetX;
             }
-            else if ((this.sprite.x + this.sprite.width) > this.boundsRect.right)
+            else if (this.sprite.right > this.boundsRect.right)
             {
-                this.sprite.x = this.boundsRect.right - this.sprite.width;
+                this.sprite.x = this.boundsRect.right - (this.sprite.width - this.sprite.offsetX);
             }
 
-            if (this.sprite.y < this.boundsRect.top)
+            if (this.sprite.top < this.boundsRect.top)
             {
-                this.sprite.y = this.boundsRect.top;
+                this.sprite.y = this.boundsRect.top + this.sprite.offsetY;
             }
-            else if ((this.sprite.y + this.sprite.height) > this.boundsRect.bottom)
+            else if (this.sprite.bottom > this.boundsRect.bottom)
             {
-                this.sprite.y = this.boundsRect.bottom - this.sprite.height;
+                this.sprite.y = this.boundsRect.bottom - (this.sprite.height - this.sprite.offsetY);
             }
         }
 
@@ -1461,43 +1507,61 @@ Phaser.InputHandler.prototype = {
 
         if (this.sprite.fixedToCamera && this.boundsSprite.fixedToCamera)
         {
-            if (this.sprite.cameraOffset.x < this.boundsSprite.camerOffset.x)
+            if (this.sprite.cameraOffset.x < this.boundsSprite.cameraOffset.x)
             {
-                this.sprite.cameraOffset.x = this.boundsSprite.camerOffset.x;
+                this.sprite.cameraOffset.x = this.boundsSprite.cameraOffset.x;
             }
-            else if ((this.sprite.cameraOffset.x + this.sprite.width) > (this.boundsSprite.camerOffset.x + this.boundsSprite.width))
+            else if ((this.sprite.cameraOffset.x + this.sprite.width) > (this.boundsSprite.cameraOffset.x + this.boundsSprite.width))
             {
-                this.sprite.cameraOffset.x = (this.boundsSprite.camerOffset.x + this.boundsSprite.width) - this.sprite.width;
+                this.sprite.cameraOffset.x = (this.boundsSprite.cameraOffset.x + this.boundsSprite.width) - this.sprite.width;
             }
 
-            if (this.sprite.cameraOffset.y < this.boundsSprite.camerOffset.y)
+            if (this.sprite.cameraOffset.y < this.boundsSprite.cameraOffset.y)
             {
-                this.sprite.cameraOffset.y = this.boundsSprite.camerOffset.y;
+                this.sprite.cameraOffset.y = this.boundsSprite.cameraOffset.y;
             }
-            else if ((this.sprite.cameraOffset.y + this.sprite.height) > (this.boundsSprite.camerOffset.y + this.boundsSprite.height))
+            else if ((this.sprite.cameraOffset.y + this.sprite.height) > (this.boundsSprite.cameraOffset.y + this.boundsSprite.height))
             {
-                this.sprite.cameraOffset.y = (this.boundsSprite.camerOffset.y + this.boundsSprite.height) - this.sprite.height;
+                this.sprite.cameraOffset.y = (this.boundsSprite.cameraOffset.y + this.boundsSprite.height) - this.sprite.height;
             }
         }
         else
         {
-            if (this.sprite.x < this.boundsSprite.x)
+            if (this.sprite.left < this.boundsSprite.left)
             {
-                this.sprite.x = this.boundsSprite.x;
+                this.sprite.x = this.boundsSprite.left + this.sprite.offsetX;
             }
-            else if ((this.sprite.x + this.sprite.width) > (this.boundsSprite.x + this.boundsSprite.width))
+            else if (this.sprite.right > this.boundsSprite.right)
             {
-                this.sprite.x = (this.boundsSprite.x + this.boundsSprite.width) - this.sprite.width;
+                this.sprite.x = this.boundsSprite.right - (this.sprite.width - this.sprite.offsetX);
             }
 
-            if (this.sprite.y < this.boundsSprite.y)
+            if (this.sprite.top < this.boundsSprite.top)
             {
-                this.sprite.y = this.boundsSprite.y;
+                this.sprite.y = this.boundsSprite.top + this.sprite.offsetY;
             }
-            else if ((this.sprite.y + this.sprite.height) > (this.boundsSprite.y + this.boundsSprite.height))
+            else if (this.sprite.bottom > this.boundsSprite.bottom)
             {
-                this.sprite.y = (this.boundsSprite.y + this.boundsSprite.height) - this.sprite.height;
+                this.sprite.y = this.boundsSprite.bottom - (this.sprite.height - this.sprite.offsetY);
             }
+
+            // if (this.sprite.x < this.boundsSprite.x)
+            // {
+            //     this.sprite.x = this.boundsSprite.x;
+            // }
+            // else if ((this.sprite.x + this.sprite.width) > (this.boundsSprite.x + this.boundsSprite.width))
+            // {
+            //     this.sprite.x = (this.boundsSprite.x + this.boundsSprite.width) - this.sprite.width;
+            // }
+
+            // if (this.sprite.y < this.boundsSprite.y)
+            // {
+            //     this.sprite.y = this.boundsSprite.y;
+            // }
+            // else if ((this.sprite.y + this.sprite.height) > (this.boundsSprite.y + this.boundsSprite.height))
+            // {
+            //     this.sprite.y = (this.boundsSprite.y + this.boundsSprite.height) - this.sprite.height;
+            // }
         }
 
     }
